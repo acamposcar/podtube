@@ -61,6 +61,7 @@ os.makedirs(AUDIO_CACHE_DIR, exist_ok=True)
 
 # Modelo de base de datos para almacenar feeds
 class PodcastFeed(db.Model):
+    print('hola2')
     id = db.Column(db.String(64), primary_key=True)  # hash del URL del canal
     channel_id = db.Column(db.String(100), nullable=False)
     channel_title = db.Column(db.String(200), nullable=False)
@@ -281,7 +282,7 @@ def generate_rss(channel_info, videos, base_url, feed_id):
 
     # Metadatos del canal
     ET.SubElement(channel, "title").text = f"{channel_info['title']} (YouTube)"
-    channel_url = f"{base_url}feed/{feed_id}"
+    channel_url = f"{base_url}/feed/{feed_id}"
     ET.SubElement(channel, "link").text = channel_url
     ET.SubElement(channel, "description").text = (
         channel_info["description"]
@@ -458,113 +459,22 @@ def download_audio(video_id):
 def index():
     return render_template("index.html")
 
-
-@app.route("/generate2", methods=["POST"])
-def generate2():
-    youtube_url = request.form.get("youtube_url")
-
-    # Validar URL
-    if not youtube_url:
-        flash("Por favor, introduce una URL de YouTube", "error")
-        return redirect(url_for("index"))
-
-    # Manejar entrada directa de nombre de usuario
-    if not ("youtube.com" in youtube_url or "youtu.be" in youtube_url):
-        if youtube_url.startswith("@"):
-            youtube_url = f"https://www.youtube.com/{youtube_url}"
-        else:
-            youtube_url = f"https://www.youtube.com/@{youtube_url}"
-
-    # Obtener ID del canal
-    channel_id = get_channel_id(youtube_url)
-
-    # Probar métodos alternativos si la extracción del ID del canal falla
-    if not channel_id and "@" in youtube_url:
-        username = re.search(r"@([^/\?]+)", youtube_url)
-        if username:
-            # Intentar una llamada directa a la API con el identificador
-            try:
-                handle = username.group(1)
-                url = f"https://www.googleapis.com/youtube/v3/channels?part=id&forHandle=@{handle}&key={YOUTUBE_API_KEY}"
-                response = requests.get(url)
-                data = response.json()
-
-                if "items" in data and len(data["items"]) > 0:
-                    channel_id = data["items"][0]["id"]
-            except Exception as e:
-                logger.error(f"Error con búsqueda directa de handle: {e}")
-
-    if not channel_id:
-        flash(
-            "No se pudo extraer el ID del canal de la URL. Por favor, usa una URL directa del canal o verifica si el canal existe.",
-            "error",
-        )
-        return redirect(url_for("index"))
-
-    # Obtener información del canal
-    channel_info = get_channel_info(channel_id)
-    if not channel_info:
-        flash(
-            "No se pudo recuperar la información del canal. El canal puede ser privado o no existir.",
-            "error",
-        )
-        return redirect(url_for("index"))
-
-    # Crear un ID único para este feed basado en el ID del canal
-    feed_id = hashlib.md5(channel_id.encode()).hexdigest()
-
-    # Verificar si ya tenemos este feed en la base de datos
-    existing_feed = PodcastFeed.query.get(feed_id)
-
-    # Si el feed ya existe y tiene menos de 1 hora, usar el contenido cacheado
-    if (
-        existing_feed
-        and (datetime.utcnow() - existing_feed.last_updated) < timedelta(hours=1)
-        and existing_feed.rss_content
-    ):
-        # Redireccionar a la URL del feed
-        return redirect(url_for("view_feed", feed_id=feed_id))
-
-    # Obtener videos
-    videos = get_videos(channel_info["uploads_playlist_id"])
-    if not videos:
-        flash("No se encontraron videos para este canal.", "error")
-        return redirect(url_for("index"))
-
-    # Generar RSS
-    base_url = request.host_url.rstrip("/")
-    if base_url.endswith("/"):
-        base_url = base_url[:-1]
-
-    rss_content = generate_rss(channel_info, videos, base_url, feed_id)
-
-    # Guardar o actualizar el feed en la base de datos
-    if existing_feed:
-        existing_feed.last_updated = datetime.utcnow()
-        existing_feed.rss_content = rss_content
-    else:
-        new_feed = PodcastFeed(
-            id=feed_id,
-            channel_id=channel_id,
-            channel_title=channel_info["title"],
-            last_updated=datetime.utcnow(),
-            rss_content=rss_content,
-        )
-        db.session.add(new_feed)
-
-    db.session.commit()
-
-    # Redireccionar a la URL del feed
-    return redirect(url_for("view_feed", feed_id=feed_id))
-
-
 @app.route("/feed/<feed_id>")
 def view_feed(feed_id):
     """Ver el feed RSS."""
-    feed = PodcastFeed.query.get_or_404(feed_id)
+    logger.info(f"Accessing feed with ID: {feed_id}")
+    
+    # Check if feed exists
+    feed = PodcastFeed.query.get(feed_id)
+    if not feed:
+        logger.error(f"Feed with ID {feed_id} not found in database")
+        return jsonify({"error": f"Feed with ID {feed_id} not found"}), 404
+    
+    logger.info(f"Feed found: {feed.channel_title}")
 
     # Si el feed tiene más de 1 hora, actualizarlo
     if (datetime.utcnow() - feed.last_updated) > timedelta(hours=1):
+        logger.info(f"Feed {feed_id} is outdated, updating in background")
         # Lanzar actualización en segundo plano
         thread = threading.Thread(target=update_feed, args=(feed_id,))
         thread.daemon = True
@@ -1035,6 +945,27 @@ def delete_channel(channel_id):
     db.session.commit()
     
     return jsonify({"message": "Channel deleted successfully"}), 200
+
+
+@app.route("/api/check-feed/<feed_id>", methods=["GET"])
+def check_feed(feed_id):
+    """Check if a feed exists and return its details."""
+    feed = PodcastFeed.query.get(feed_id)
+    
+    if not feed:
+        return jsonify({
+            "exists": False,
+            "message": f"Feed with ID {feed_id} not found"
+        }), 404
+    
+    return jsonify({
+        "exists": True,
+        "feed_id": feed.id,
+        "channel_id": feed.channel_id,
+        "channel_title": feed.channel_title,
+        "last_updated": feed.last_updated.isoformat() if feed.last_updated else None,
+        "has_rss_content": bool(feed.rss_content)
+    })
 
 
 if __name__ == "__main__":
