@@ -35,7 +35,7 @@ COPY backend/ .
 RUN mkdir -p instance audio_cache
 
 # Copy built frontend from the frontend-build stage
-COPY --from=frontend-build /app/frontend/dist /app/static
+COPY --from=frontend-build /app/frontend/dist /app/backend/static
 
 # Expose the port the app runs on
 EXPOSE 5000
