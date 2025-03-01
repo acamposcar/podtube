@@ -9,6 +9,7 @@ from flask import (
     send_file,
     Response,
     jsonify,
+    send_from_directory,
 )
 import requests
 import xml.etree.ElementTree as ET
@@ -35,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()  # Cargar variables de entorno desde archivo .env
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', static_url_path='')
 CORS(
     app,
     resources={
@@ -457,7 +458,13 @@ def download_audio(video_id):
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return send_from_directory(app.static_folder, 'index.html')
+
+@app.route("/<path:path>")
+def serve_static(path):
+    if path and os.path.exists(os.path.join(app.static_folder, path)):
+        return send_from_directory(app.static_folder, path)
+    return send_from_directory(app.static_folder, 'index.html')
 
 @app.route("/feed/<feed_id>")
 def view_feed(feed_id):
