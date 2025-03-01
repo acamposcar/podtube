@@ -1,0 +1,88 @@
+# Git
+.git
+.github
+.gitignore
+
+# Node.js / Frontend
+frontend/node_modules
+frontend/dist
+frontend/build
+frontend/.cache
+frontend/coverage
+frontend/.env*
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/.pnpm-debug.log*
+
+# Python / Backend
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+backend/env/
+backend/venv/
+backend/ENV/
+backend/build/
+backend/develop-eggs/
+backend/dist/
+backend/downloads/
+backend/eggs/
+backend/.eggs/
+backend/lib/
+backend/lib64/
+backend/parts/
+backend/sdist/
+backend/var/
+backend/*.egg-info/
+backend/.installed.cfg
+backend/*.egg
+backend/.pytest_cache/
+backend/.coverage
+backend/htmlcov/
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+
+# OS specific
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE / Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.vs/
+*.sublime-workspace
+*.sublime-project
+
+# Logs
+logs/
+*.log
+
+# Media files
+*.mp3
+*.mp4
+*.wav
+*.flac
+*.ogg
+*.webm
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Documentation
+README.md
+LICENSE
+*.md
+
+# Audio cache - we'll create this in the container
+backend/audio_cache/ 
