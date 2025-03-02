@@ -29,8 +29,7 @@ import { useToast } from "@/components/ui/toast";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
-const API_URL = import.meta.env.VITE_API_URL;
+import { getApiUrl } from "@/utils/api";
 
 interface Channel {
 	id: string;
@@ -78,7 +77,7 @@ export default function Channels() {
 	const fetchChannels = async () => {
 		setLoading(true);
 		try {
-			const response = await axios.get(`${API_URL}/api/channels`);
+			const response = await axios.get(getApiUrl('/api/channels'));
 			setChannels(response.data.channels);
 		} catch (err) {
 			setError("Failed to load channels. Please try again.");
@@ -117,7 +116,7 @@ export default function Channels() {
 		if (!currentChannel) return;
 
 		try {
-			await axios.put(`${API_URL}/api/channels/${currentChannel.id}`, formData);
+			await axios.put(getApiUrl(`/api/channels/${currentChannel.id}`), formData);
 			setIsEditDialogOpen(false);
 			fetchChannels();
 			toast({
@@ -134,7 +133,7 @@ export default function Channels() {
 		if (!currentChannel) return;
 
 		try {
-			await axios.delete(`${API_URL}/api/channels/${currentChannel.id}`);
+			await axios.delete(getApiUrl(`/api/channels/${currentChannel.id}`));
 			setIsDeleteDialogOpen(false);
 			fetchChannels();
 			toast({
@@ -187,7 +186,7 @@ export default function Channels() {
 			console.log("Enviando datos al servidor:", newChannelData);
 
 			const response = await axios.post(
-				`${API_URL}/api/channels`,
+				getApiUrl('/api/channels'),
 				newChannelData,
 			);
 			console.log("Respuesta del servidor:", response.data);
@@ -222,7 +221,7 @@ export default function Channels() {
 	const handleCopyFeedUrl = async (channelId: string) => {
 		try {
 			// Get the correct feed URL from the backend
-			const response = await axios.get(`${API_URL}/preview/${channelId}`);
+			const response = await axios.get(getApiUrl(`/preview/${channelId}`));
 			const feedUrl = response.data.feed_url;
 
 			await navigator.clipboard.writeText(feedUrl);

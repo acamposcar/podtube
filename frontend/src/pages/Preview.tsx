@@ -12,8 +12,7 @@ import {
 	Clock,
 	Headphones,
 } from "lucide-react";
-
-const API_URL = import.meta.env.VITE_API_URL;
+import { getApiUrl } from "@/utils/api";
 
 interface Video {
 	id: string;
@@ -43,7 +42,7 @@ export default function Preview() {
 	useEffect(() => {
 		const fetchPreview = async () => {
 			try {
-				const response = await axios.get(`${API_URL}/preview/${feedId}`);
+				const response = await axios.get(getApiUrl(`/preview/${feedId}`));
 				setChannel(response.data.channel);
 				setVideos(response.data.videos);
 				setFeedUrl(response.data.feed_url);

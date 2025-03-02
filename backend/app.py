@@ -41,7 +41,7 @@ CORS(
     app,
     resources={
         r"/*": {
-            "origins": [os.getenv("CORS_ORIGIN", "http://localhost:5173"), "http://127.0.0.1:5000", "http://localhost:5000", "http://192.168.1.2:5007"],
+            "origins": "*",
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type"],
         }
