@@ -518,6 +518,7 @@ def update_feed(feed_id):
 @app.route("/audio/<video_id>")
 def stream_audio(video_id):
     """Stream audio directly from YouTube using yt-dlp."""
+    logger.info(f"Streaming audio for video {video_id}")
 
     def generate():
         # Set up yt-dlp command to stream audio
@@ -530,10 +531,12 @@ def stream_audio(video_id):
             "--no-continue",  # Don't resume downloads
             "--no-part",  # Don't create temporary .part files
             "--no-playlist",  # Single video only
+            "--quiet",  # Suppress output
             f"https://www.youtube.com/watch?v={video_id}",
         ]
 
         try:
+            logger.info(f"Executing command: {' '.join(cmd)}")
             # Start yt-dlp process
             process = subprocess.Popen(
                 cmd,
@@ -549,6 +552,11 @@ def stream_audio(video_id):
                     break
                 yield chunk
 
+            # Check if there was an error
+            stderr_output = process.stderr.read().decode('utf-8', errors='ignore')
+            if stderr_output:
+                logger.error(f"yt-dlp error for video {video_id}: {stderr_output}")
+                
         except Exception as e:
             logger.error(f"Error streaming audio for video {video_id}: {e}")
             yield b""
