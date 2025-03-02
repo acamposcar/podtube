@@ -3,23 +3,19 @@ from flask import (
     request,
     render_template,
     make_response,
-    redirect,
     url_for,
-    flash,
-    send_file,
     Response,
     jsonify,
     send_from_directory,
+    stream_with_context
 )
 import requests
 import xml.etree.ElementTree as ET
 from datetime import datetime
 import re
 import os
-import json
 import tempfile
 from dotenv import load_dotenv
-import urllib.parse
 import subprocess
 import threading
 import shutil
@@ -519,7 +515,7 @@ def update_feed(feed_id):
 def stream_audio(video_id):
     """Stream audio directly from YouTube using yt-dlp."""
     logger.info(f"Streaming audio for video {video_id}")
-
+    
     def generate():
         # Set up yt-dlp command to stream audio
         cmd = [
@@ -535,6 +531,7 @@ def stream_audio(video_id):
             f"https://www.youtube.com/watch?v={video_id}",
         ]
 
+        process = None
         try:
             logger.info(f"Executing command: {' '.join(cmd)}")
             # Start yt-dlp process
@@ -557,12 +554,32 @@ def stream_audio(video_id):
             if stderr_output:
                 logger.error(f"yt-dlp error for video {video_id}: {stderr_output}")
                 
+        except GeneratorExit:
+            # This exception is raised when the client disconnects
+            logger.info(f"Client disconnected from stream for video {video_id}")
+            if process and process.poll() is None:  # Check if process is still running
+                process.terminate()  # Send SIGTERM
+                try:
+                    process.wait(timeout=5)  # Wait up to 5 seconds for graceful termination
+                except subprocess.TimeoutExpired:
+                    process.kill()  # Force kill if it doesn't terminate gracefully
+                logger.info(f"Terminated yt-dlp process for video {video_id}")
         except Exception as e:
             logger.error(f"Error streaming audio for video {video_id}: {e}")
+            if process and process.poll() is None:
+                process.terminate()
             yield b""
+        finally:
+            # Ensure process is terminated when the generator is garbage collected
+            if process and process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
 
     return Response(
-        generate(),
+        stream_with_context(generate()),  # Use stream_with_context to properly handle client disconnection
         mimetype="audio/mpeg",
         headers={
             "Accept-Ranges": "bytes",
